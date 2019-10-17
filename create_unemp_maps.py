@@ -10,13 +10,13 @@
 #######################################################################################
 import folium
 import pandas as pd
-import sys
 import json
 import csv 
 import os
-import math
 import time
+import datetime
 from selenium import webdriver
+from create_timepoint_maps import make_map
 
 # location of this folder on the hard drive
 base_loc = os.path.join('C:\\','Users','laslo','OneDrive','Documents','Maria','MapAnimation')
@@ -56,7 +56,9 @@ for col in cols_in:
     
     if col == 'Region Code':
         cols_rename.append('FIPS')
-    elif col in ('Series ID','Region Name') or col[0:3] in ('198','197'):
+    elif col == 'Region Name':
+        cols_rename.append('CountyName')
+    elif col == 'Series ID' or col[0:3] in ('198','197'):
         cols_rename.append('DROP')
     elif "January" in col:
         cols_rename.append(f"Unemp_{col[0:4]}01")
@@ -91,6 +93,11 @@ unemp.columns = cols_rename
 # Get rid of dropped columns
 unemp.drop(columns =['DROP'], inplace = True) 
 
+# Initialize county and state fips and state abbreviation as character
+unemp['STATEFP'] = ''
+unemp['COUNTYFP'] = ''
+unemp['StateAbbr'] = ''
+
 # Make sure the fips codes have leading zeros. Excel drops these if it considered it a numeric value.
 for obs in range(0,len(unemp)):
     if len(str(unemp.loc[obs,'FIPS'])) == 4:
@@ -103,6 +110,58 @@ for obs in range(0,len(unemp)):
     if str(unemp.loc[obs,'FIPS']) == '46102':
         unemp.loc[obs,'FIPS'] = '46113'
 
+    # set county/state fips
+    unemp.loc[obs,'COUNTYFP'] = unemp.loc[obs,'FIPS'][2:5]
+    unemp.loc[obs,'STATEFP'] = unemp.loc[obs,'FIPS'][0:2]
+
+    # separate out the state abbreviation and county name
+    unemp.loc[obs,'StateAbbr'] = unemp.loc[obs,'CountyName'][-2:]
+    unemp.loc[obs,'CountyName'] = unemp.loc[obs,'CountyName'][:-4]
+  
+# Grab the current column order
+cols_reorder = unemp.columns.to_list()
+
+# take out the columns we are moving to the front
+cols_reorder.remove('STATEFP')
+cols_reorder.remove('COUNTYFP')
+cols_reorder.remove('FIPS')
+cols_reorder.remove('StateAbbr')
+cols_reorder.remove('CountyName')
+
+# Move the columns we want to the front
+cols_reorder.insert(0,'StateAbbr')
+cols_reorder.insert(0,'CountyName')
+cols_reorder.insert(0,'COUNTYFP')
+cols_reorder.insert(0,'STATEFP')
+cols_reorder.insert(0,'FIPS')
+
+# reset the column order
+unemp = unemp[cols_reorder]
+
+# set the FIPS code as the index
+unemp = unemp.set_index('FIPS')
+fnl_cols = unemp.columns.to_list()
+
+# recreate the unemployment data as a dictionary so it can be tacked onto a geojson file
+#data2add = unemp[fnl_cols].T.to_dict('dict')
+#print(data2add['45001'])
+
+data2add = {}
+
+# Loop through the dataframe and add information to the data2add dictionary. 
+# We will use this to put these values into the geojson.
+for row, rowvals in unemp.iterrows():
+        
+    FIPS = rowvals[0]
+    
+    if FIPS not in data2add:
+        data2add[FIPS]={}
+            
+    # pull information from dataframe into temporary variables
+    for vname in fnl_cols:
+        data2add[FIPS][f'{vname}'] = rowvals[fnl_cols.index(f'{vname}')]   
+
+print(data2add['45001'])
 #######################################################################################
 ## Create a function to set county color based on unemployment value
 #######################################################################################
@@ -110,7 +169,7 @@ for obs in range(0,len(unemp)):
 def unemp_colors(feature):
     
     try: 
-        test_value = temp_dict[feature['properties']['FIPS']]
+        test_value = data_to_map[feature['properties']['FIPS']]
     except:
         test_value = -1
         
@@ -139,9 +198,56 @@ def unemp_colors(feature):
         return '#006837'
     else:
         return "#lightgray"
+
+#######################################################################################
+## Create html text to generate a legend for the same colors
+#######################################################################################
+unemp_legend_html = '''
+     <div style="position: fixed; 
+                 bottom: 5%;
+                 right: 5%;
+                 z-index: 1000;
+                 padding: 6px 8px;
+                 width: 60px;
+                 font: 12px Arial, Helvetica, sans-serif;
+                 font-weight: bold;
+                 background: #8d8a8d;
+                 border-radius: 5px;
+                 box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                 line-height: 18px;
+                 color: 'black';">
+
+     <i style="background: #a50026"> &nbsp &nbsp</i> 9+ <br>
+     <i style="background: #d73027"> &nbsp &nbsp</i> 8 - 9<br>
+     <i style="background: #f46d43"> &nbsp &nbsp</i> 7 - 8<br>
+     <i style="background: #fdae61"> &nbsp &nbsp</i> 6 - 7<br>
+     <i style="background: #fee08b"> &nbsp &nbsp</i> 5 - 6<br>
+     <i style="background: #d9ef8b"> &nbsp &nbsp</i> 4 - 5<br>
+     <i style="background: #a6d96a"> &nbsp &nbsp</i> 3 - 4<br>
+     <i style="background: #66bd63"> &nbsp &nbsp</i> 2 - 3<br>
+     <i style="background: #1a9850"> &nbsp &nbsp</i> 1 - 2<br>
+     <i style="background: #006837"> &nbsp &nbsp</i> 0 - 1<br>
+      </div>
+     '''
     
 #######################################################################################
-## Create a function to produce maps for each time period
-## 1. As an html file
-## 2. As a png file (by navigating to the html file and taking a screen shot)
+## Create maps for each month and year from 1990 through 2000
 #######################################################################################
+
+for year in range(1991,1992):
+
+    for m in range(1,13):
+        month = m
+        if m < 10:
+            month = f'0{m}'
+
+        # Call the function to create the html and png maps
+        make_map(f'{year}{month}',\
+                data2add,\
+                os.path.join(clean_loc,\
+                f'FinalGeoFile{year}{month}01.json'),\
+                f'Unemp_{year}{month}',\
+                os.path.join(map_html,f'UnemploymentMap_{year}{month}.html'),\
+                os.path.join(map_png,f'UnemploymentMap_{year}{month}.png'),\
+                unemp_colors,\
+                unemp_legend_html)
