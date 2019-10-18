@@ -328,9 +328,9 @@ def make_map(timepoint,legend_html):
 ## Create maps for each month and year from 1990 through 2000
 #######################################################################################
 
-for year in range(1990,2000):
+for year in range(1990,1991):
 
-    for m in range(1,13): 
+    for m in range(1,4): 
         month = m
         if m < 10:
             month = f'0{m}'
