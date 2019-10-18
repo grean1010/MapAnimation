@@ -138,30 +138,6 @@ cols_reorder.insert(0,'FIPS')
 # reset the column order
 unemp = unemp[cols_reorder]
 
-# set the FIPS code as the index
-unemp = unemp.set_index('FIPS')
-fnl_cols = unemp.columns.to_list()
-
-# recreate the unemployment data as a dictionary so it can be tacked onto a geojson file
-#data2add = unemp[fnl_cols].T.to_dict('dict')
-#print(data2add['45001'])
-
-data2add = {}
-
-# Loop through the dataframe and add information to the data2add dictionary. 
-# We will use this to put these values into the geojson.
-for row, rowvals in unemp.iterrows():
-        
-    FIPS = rowvals[0]
-    
-    if FIPS not in data2add:
-        data2add[FIPS]={}
-            
-    # pull information from dataframe into temporary variables
-    for vname in fnl_cols:
-        data2add[FIPS][f'{vname}'] = rowvals[fnl_cols.index(f'{vname}')]   
-
-print(data2add['45001'])
 #######################################################################################
 ## Create a function to set county color based on unemployment value
 #######################################################################################
@@ -169,7 +145,7 @@ print(data2add['45001'])
 def unemp_colors(feature):
     
     try: 
-        test_value = data_to_map[feature['properties']['FIPS']]
+        test_value = feature['properties']['UnemploymentRate']
     except:
         test_value = -1
         
@@ -231,23 +207,133 @@ unemp_legend_html = '''
      '''
     
 #######################################################################################
+## Create a function to create a map for each point in time and save as html and png
+#######################################################################################
+
+def make_map(timepoint,legend_html):
+
+    import datetime
+    import folium
+    import json
+
+    #print(data_to_map['22001'])
+
+    json_input = os.path.join(clean_loc,f'FinalGeoFile{timepoint}01.json')
+    json_output = os.path.join(clean_loc,f'UnempGeoFile{timepoint}01.json')
+    save_html = os.path.join(map_html,f'UnemploymentMap_{timepoint}.html')
+    save_png = os.path.join(map_png,f'UnemploymentMap_{timepoint}.png')
+    
+    ratedata4timepoint = {}
+
+    # Loop through the dataframe and add information to the data2add dictionary. 
+    # We will use this to put these values into the geojson.
+    for row, rowvals in unemp.iterrows():
+        
+        # pull the fips code from the first entry in the row
+        FIPS = rowvals[0]
+    
+        # If we have not previously seen this fips code, add it ot the dictionary
+        if FIPS not in ratedata4timepoint:
+            ratedata4timepoint[FIPS]={}
+            
+        # pull county name, state abbreviation and the unemployment rate for this timepoint
+        ratedata4timepoint[FIPS]['CountyName'] = rowvals[cols_reorder.index('CountyName')]   
+        ratedata4timepoint[FIPS]['StateAbbr'] = rowvals[cols_reorder.index('StateAbbr')]  
+        ratedata4timepoint[FIPS]['UnemploymentRate'] = rowvals[cols_reorder.index(f'Unemp_{timepoint}')]  
+            
+    # Add the data we will be mapping to the json file
+    # Create a blank geojson that we will build up with the existing one plus the new information
+    geojson = {}
+    
+    # Open up the existing geojson file and read it into the empty geojson dictionary created above.
+    # While reading it in, pull the matching fips from the data2add dictionary so we can add the
+    # variable as a feature/property in the geojson.
+    with open(json_input, 'r') as f:
+        geojson = json.load(f)
+        for feature in geojson['features']:
+            featureProperties = feature['properties']
+            FIPS = featureProperties['FIPS']
+
+            featureData = ratedata4timepoint.get(FIPS, {})
+            for key in featureData.keys():
+                featureProperties[key] = featureData[key]
+                
+    # Output this updated geojson.
+    with open(json_output, 'w') as f:
+        json.dump(geojson, f)
+
+    # Pull the year and month from the timepoint 
+    yearpoint = timepoint[0:4]
+    monthpoint = datetime.date(int(timepoint[0:4]), int(timepoint[4:6]), 1).strftime('%B')
+
+    # Create a list of fields to be included in the tooltip and a list of descriptions for those variables
+    # Use the name of the variable to determine the tooltip list contents
+    tip_fields = ['CountyName','StateAbbr','UnemploymentRate']
+    tip_aliases = ['County Name:', 'State:',f'Unemployment Rate {monthpoint}, {yearpoint}:']
+
+    m = folium.Map([43,-100], tiles='cartodbpositron', zoom_start=4.25)
+
+    # Display the month on the top of the page
+    title_html = f'''
+        <div style="position: fixed; 
+                 bottom: 90%;
+                 right: 50%;
+                 align: center;
+                 z-index: 1001;
+                 padding: 6px 8px;
+                 font: 40px Arial, Helvetica, sans-serif;
+                 font-weight: bold;
+                 line-height: 18px;
+                 color: 'black';">
+        <h3><b>{yearpoint} Month {timepoint[4:6]}</b></h3></div>'''
+
+    m.get_root().html.add_child(folium.Element(title_html))
+
+    # Add the legend that was created in the main program
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    folium.GeoJson(json_output,
+                   style_function=lambda feature: {
+                                            'fillColor': unemp_colors(feature),
+                                            'fillOpacity' : '0.9',
+                                            'color' : 'black',
+                                            'weight' : 1
+                                            },   
+                    highlight_function=lambda x: {'weight':2,'fillOpacity':1},    
+                    tooltip=folium.features.GeoJsonTooltip(
+                                            fields=tip_fields,
+                                            aliases=tip_aliases)      
+    ).add_to(m)
+
+    # Save the map to an html file
+    m.save(save_html)
+
+    # Open a browser window...
+    browser = webdriver.Chrome()
+
+    #..that displays the map...
+    browser.get(save_html)
+
+    # Give the map tiles some time to load
+    time.sleep(5)
+
+    # Grab the screenshot and save it as a png file
+    browser.save_screenshot(save_png)
+    
+    # Close the browser
+    browser.quit()
+
+    
+#######################################################################################
 ## Create maps for each month and year from 1990 through 2000
 #######################################################################################
 
-for year in range(1991,1992):
+for year in range(1990,2000):
 
-    for m in range(1,13):
+    for m in range(1,13): 
         month = m
         if m < 10:
             month = f'0{m}'
 
         # Call the function to create the html and png maps
-        make_map(f'{year}{month}',\
-                data2add,\
-                os.path.join(clean_loc,\
-                f'FinalGeoFile{year}{month}01.json'),\
-                f'Unemp_{year}{month}',\
-                os.path.join(map_html,f'UnemploymentMap_{year}{month}.html'),\
-                os.path.join(map_png,f'UnemploymentMap_{year}{month}.png'),\
-                unemp_colors,\
-                unemp_legend_html)
+        make_map(f'{year}{month}', unemp_legend_html)

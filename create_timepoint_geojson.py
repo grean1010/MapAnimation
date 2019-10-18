@@ -105,10 +105,13 @@ def create_timepoint_geojson(timepoint):
                 f.write(',')
         f.write(']}')
 
-create_timepoint_geojson('19700101')
-create_timepoint_geojson('19800101')
-for year in range(1990,2001):
-    for month in range(1,10):
-        create_timepoint_geojson(f'{year}0{month}01')  
-    for month in range(10,13):
-        create_timepoint_geojson(f'{year}{month}01')  
+
+create_timepoint_geojson('19900101')
+
+#create_timepoint_geojson('19700101')
+#create_timepoint_geojson('19800101')
+#for year in range(1990,2001):
+#    for month in range(1,10):
+#        create_timepoint_geojson(f'{year}0{month}01')  
+#    for month in range(10,13):
+#        create_timepoint_geojson(f'{year}{month}01')  
