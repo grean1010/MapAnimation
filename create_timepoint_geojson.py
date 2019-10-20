@@ -21,9 +21,7 @@
 #######################################################################################
 import sys
 import json
-import csv 
 import os
-import pandas as pd
 import datetime
 
 # Set locations for raw and clean data folders.
@@ -107,8 +105,6 @@ def create_timepoint_geojson(timepoint):
 
 
 create_timepoint_geojson('19900101')
-create_timepoint_geojson('19900102')
-create_timepoint_geojson('19900103')
 
 #create_timepoint_geojson('19700101')
 #create_timepoint_geojson('19800101')

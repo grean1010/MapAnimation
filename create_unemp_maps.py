@@ -151,7 +151,7 @@ def unemp_colors(feature):
         
     #print(test_value)
     
-    """Maps low values to green and hugh values to red."""
+    """Maps low values to green and high values to red."""
     if test_value > 9:
         return '#a50026' 
     elif test_value > 8:
@@ -215,10 +215,18 @@ def make_map(timepoint,legend_html):
     import datetime
     import folium
     import json
+    
+    # pull the year from the date variable
+    year2check = int(timepoint[0:4])
 
-    #print(data_to_map['22001'])
+    # for years prior to 2000, we have an input file for each month
+    if year2check <= 2000:
+        json_input = os.path.join(clean_loc,f'FinalGeoFile{timepoint}01.json')
+    
+    # for years after 2000, we only have one input file per year labeled as year0101
+    else:
+        json_input = os.path.join(clean_loc,f'FinalGeoFile{year2check}0101.json')
 
-    json_input = os.path.join(clean_loc,f'FinalGeoFile{timepoint}01.json')
     json_output = os.path.join(clean_loc,f'UnempGeoFile{timepoint}01.json')
     save_html = os.path.join(map_html,f'UnemploymentMap_{timepoint}.html')
     save_png = os.path.join(map_png,f'UnemploymentMap_{timepoint}.png')
@@ -328,9 +336,9 @@ def make_map(timepoint,legend_html):
 ## Create maps for each month and year from 1990 through 2000
 #######################################################################################
 
-for year in range(1990,1991):
+for year in range(2006,2020):
 
-    for m in range(1,4): 
+    for m in range(1,13): 
         month = m
         if m < 10:
             month = f'0{m}'
