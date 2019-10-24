@@ -4,6 +4,7 @@ This project is a work in progress.  I am expanding on work done as part of a da
 
 
 ![US Unemployment Rates by County 1990 - 2019](animations/UnemploymentAnimation.mp4)
+If link does not work, please go to the animations folder and download mp4 to see the animation. 
 
 
 ## Shape files were downloaded from this site:
