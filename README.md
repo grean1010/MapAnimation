@@ -2,8 +2,8 @@
 
 This project is a work in progress.  I am expanding on work done as part of a data analytics project to create videos of animated maps. 
 
+[![US Unemployment Rates by County 1990 - 2019](https://img.youtube.com/vi/Si6AaTbcIXQ/0.jpg)](https://www.youtube.com/watch?v=Si6AaTbcIXQ)
 
-![US Unemployment Rates by County 1990 - 2019](animations/UnemploymentAnimation.mp4)
 If link does not work, please go to the animations folder and download mp4 to see the animation. 
 
 
