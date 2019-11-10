@@ -4,9 +4,9 @@ This project is a work in progress.  I am expanding on work done as part of a da
 
 [![US Unemployment Rates by County 1990 - 2019](https://img.youtube.com/vi/Si6AaTbcIXQ/0.jpg)](https://www.youtube.com/watch?v=Si6AaTbcIXQ)
 
-[![US Year over Year Change in Per-Capita Income by County 2002 - 2017](https://youtu.be/h3zXQxbX1Zk)](https://youtu.be/h3zXQxbX1Zk)
+[![US Year over Year Change in Per-Capita Income by County 2002 - 2017](map_png/PCPIMap_2002.png)](https://youtu.be/h3zXQxbX1Zk)
 
-[![US Education Level by County 1970 - 2017](https://youtu.be/UTE-9tPcTls)](https://youtu.be/UTE-9tPcTls)
+[![US Education Level by County 1970 - 2017](map_png/EDUMap_1970.png)](https://youtu.be/UTE-9tPcTls)
 
 If link does not work, please go to the animations folder and download mp4 to see the animation. 
 
